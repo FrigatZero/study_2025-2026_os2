@@ -1,10 +1,10 @@
 {
-  "name": "course-directory-student-template",
-  "version": "1.3.1",
-  "description": "Course Catalog Template for Students",
+  "name": "os2",
+  "version": "1.0.0",
+  "description": "Основы администрирования операционных систем",
   "main": "index.js",
-  "repository": "git@github.com:yamadharma/course-directory-student-template.git",
-  "author": "Dmitry S. Kulyabov <yamadharma@gmail.com>",
+  "repository": "git@github.com:FrigatZero/study_2025-2026_os2.git",
+  "author": "Daniel Sergeev <den.sergeev17@yandex.ru>",
   "license": "CC-BY-4.0",
     "config": {
 	"commitizen": {
