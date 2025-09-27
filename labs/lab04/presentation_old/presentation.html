@@ -263,7 +263,7 @@ useradd?</li>
 <ul>
 <li>Можно использовать последовательность dnf group list | grep -i
 security , dnf group info “группа, которую нашли”</li>
-<li>Или же одной командой dnf group info “<em>security</em>”</li>
+<li>Или же одной командой dnf group info “*security*”</li>
 </ul>
 <h2 id="ответы-на-контрольные-вопросы-1">Ответы на контрольные
 вопросы</h2>
@@ -295,8 +295,8 @@ security , dnf group info “группа, которую нашли”</li>
 <li>Какая команда показывает, какому пакету rpm принадлежит файл?</li>
 </ol>
 <ul>
-<li>rpm -qf $(which путь_до_исполняемого_файла) или же rpm -qf $(which
-имя_исполняемого_файла)</li>
+<li>rpm -qf $(which имя_исполняемого_файла) или же rpm -qf
+$(путь_до_исполняемого_файла)</li>
 </ul>
 </section>
 <section id="вывод" class="slide level1">
