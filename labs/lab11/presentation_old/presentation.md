@@ -56,12 +56,25 @@ header-includes:
 
 ## Модификация параметров GRUB2
 
-![Редактирование параметров /etc/default/grub](image/1.PNG){#fig:001 width=90%}
+:::::::::::::: {.columns align=center}
+::: {.column width="50%"}
+
+![Редактирование параметров /etc/default/grub](image/1.PNG){#fig:001 width=100%}
+
+:::
+::: {.column width="50%"}
+
+```GRUB_TIMEOUT=10```,
+
+удалим значения ```rhgb``` и ```quiet``` в параметре ```GRUB_CMDLINE_LINUX```
 
 После изменений закроем редактор и запишим изменения в GRUB2:
 ```bash
 grub2-mkconfig -o /boot/grub2/grub.cfg
 ```
+
+:::
+::::::::::::::
 
 ## Модификация параметров GRUB2
 
