@@ -1,0 +1,351 @@
+---
+## Front matter
+title: "Лабораторная работа № 16. Программный RAID"
+subtitle: "Отчёт"
+author: "Сергеев Даниил Олегович"
+
+## Generic otions
+lang: ru-RU
+toc-title: "Содержание"
+
+## Bibliography
+bibliography: bib/cite.bib
+csl: pandoc/csl/gost-r-7-0-5-2008-numeric.csl
+
+## Pdf output format
+toc: true # Table of contents
+toc-depth: 2
+lof: true # List of figures
+lot: true # List of tables
+fontsize: 12pt
+linestretch: 1.5
+papersize: a4
+documentclass: scrreprt
+## I18n polyglossia
+polyglossia-lang:
+  name: russian
+  options:
+	- spelling=modern
+	- babelshorthands=true
+polyglossia-otherlangs:
+  name: english
+## I18n babel
+babel-lang: russian
+babel-otherlangs: english
+## Fonts
+mainfont: IBM Plex Serif
+romanfont: IBM Plex Serif
+sansfont: IBM Plex Sans
+monofont: IBM Plex Mono
+mathfont: STIX Two Math
+mainfontoptions: Ligatures=Common,Ligatures=TeX,Scale=0.94
+romanfontoptions: Ligatures=Common,Ligatures=TeX,Scale=0.94
+sansfontoptions: Ligatures=Common,Ligatures=TeX,Scale=MatchLowercase,Scale=0.94
+monofontoptions: Scale=MatchLowercase,Scale=0.94,FakeStretch=0.9
+mathfontoptions:
+## Biblatex
+biblatex: true
+biblio-style: "gost-numeric"
+biblatexoptions:
+  - parentracker=true
+  - backend=biber
+  - hyperref=auto
+  - language=auto
+  - autolang=other*
+  - citestyle=gost-numeric
+## Pandoc-crossref LaTeX customization
+figureTitle: "Рис."
+tableTitle: "Таблица"
+listingTitle: "Листинг"
+lofTitle: "Список иллюстраций"
+lotTitle: "Список таблиц"
+lolTitle: "Листинги"
+## Misc options
+indent: true
+header-includes:
+  - \usepackage{indentfirst}
+  - \usepackage{float} # keep figures where there are in the text
+  - \floatplacement{figure}{H} # keep figures where there are in the text
+---
+
+# Цель работы
+
+Освоить работу с RAID-массивами при помощи утилиты mdadm. [@tuis]
+
+# Задание
+
+- Прочитайте руководство по работе с утилитами fdisk, sfdisk и mdadm.
+- Добавить три диска на виртуальную машину (объёмом от 512 MiB каждый). При помощи sfdisk создать на каждом из дисков по одной партиции, задав тип раздела для RAID.
+- Создать массив RAID 1 из двух дисков, смонтировать его. Эмитировать сбой одного из дисков массива, удалить искусственно выведенный из строя диск, добавить в массив работающий диск.
+- Создать массив RAID 1 из двух дисков, смонтировать его. Добавить к массиву третий диск. Эмитировать сбой одного из дисков массива. Проанализировать состояние массива, указать различия по сравнению с предыдущим случаем.
+- Создать массив RAID 1 из двухд исков, смонтировать его. Добавить к массиву третий диск. Изменить тип массива с RAID1 на RAID5, изменить число дисков в массиве с 2 на 3. Проанализировать состояние массива, указать различия по сравнению с предыдущим случаем
+
+# Ход выполнения лабораторной работы
+
+## Создание виртуальных носителей
+
+Перед выполнением лабораторной работы добавим через меню VirutalBox дополнительные диски ```disk4.vdi```, ```disk5.vdi```, ```disk6.vdi``` размером 512 МБ.
+
+![Диски в меню VirutalBox](image/1.PNG){#fig:001 width=90%}
+
+## Создание RAID-диска
+
+Получим полномочия администратора и проверим наличие созданных дисков.
+```bash
+su -
+fdisk -l | grep /dev/sd
+```
+
+Добавленные диски отобразились как ```/dev/sdg``` ```/dev/sdf``` и ```/dev/sdb```.
+
+![Список подключенных дисков](image/2.PNG){#fig:002 width=90%}
+
+Создадим на каждом из дисков по разделу и проверим их тип:
+```bash
+sfdisk /dev/sdg <<EOF
+;
+EOF
+sfdisk /dev/sdf <<EOF
+;
+EOF
+sfdisk /dev/sdb <<EOF
+;
+EOF
+
+sfdisk --print-id /dev/sdg 1
+sfdisk --print-id /dev/sdf 1
+sfdisk --print-id /dev/sdb 1
+```
+
+Каждый из разделов имеет тип ```83:Linux``` - файловая система ```Linux```, которая ставится по умолчанию.
+
+![Создание раздела на /dev/sdg](image/3.PNG){#fig:003 width=90%}
+
+![Создание раздела на /dev/sdf](image/4.PNG){#fig:004 width=90%}
+
+![Создание раздела на /dev/sdb](image/5.PNG){#fig:005 width=90%}
+
+![Проверка типа разделов](image/6.PNG){#fig:006 width=90%}
+
+Посмотрим, какие типы партиций относятся к RAID в утилите sfdisk:
+```bash
+sfdisk -T | grep -i raid
+```
+
+Можно задать тип ```fd:Linux raid autodetect```, установим его:
+```bash
+sfdisk --change-id /dev/sdg 1 fd
+sfdisk --change-id /dev/sdf 1 fd
+sfdisk --change-id /dev/sdb 1 fd
+```
+
+![Установка типа fd для разделов](image/7.PNG){#fig:007 width=90%}
+
+Посмотрим состояние дисков:
+```bash
+sfdisk -l /dev/sdg
+sfdisk -l /dev/sdf
+sfdisk -l /dev/sdb
+```
+
+![Состояние дисков sdg, sdf, sdb](image/8.PNG){#fig:008 width=90%}
+
+У каждого из них имеется раздел под номером 1, который занимает все имеющееся пространство и имеет тип fd.
+
+При помощи утилиты ```mdadm``` создадим массив ```RAID 1``` из двух дисков ```/dev/sdg1``` и ```/dev/sdf1```:
+```bash
+mdadm --create --verbose /dev/md0 --level=1 --raid-devices=2 /dev/sdg1 /dev/sdf1
+```
+
+Проверим состояние массива ```RAID: /dev/md0```:
+```bash
+cat /proc/mdstat
+mdadm --query /dev/md0
+mdadm --detail /dev/md0
+```
+
+![Состояние массива /dev/md0](image/9.PNG){#fig:009 width=90%}
+
+Массив ```/dev/md0``` активен и имеет тип ```raid1```. В нем находится два активных раздела ```[0]/dev/sdg1``` и ```[1]/dev/sdf1```.
+
+Создадим файловую систму на ```RAID```, подмонтируем и добавим в автомонтирование:
+```bash
+mkfs.ext4 /dev/md0
+mkdir /data
+mount /dev/md0 /data
+
+# внутри /etc/fstab
+/dev/md0 /data ext4 defaults 1 2
+```
+
+Сымитируем сбой одного из дисков и удалим его. Заменим на ```/dev/sdb1```:
+```bash
+mdadm /dev/md0 --fail /dev/sdg1
+mdadm /dev/md0 --remove /dev/sdg1
+mdadm /dev/md0 --add /dev/sdb1
+```
+
+![Форматирование и "сбой" /dev/md0](image/10.PNG){#fig:010 width=90%}
+
+Проверим состояние массива:
+```bash
+mdadm --detail /dev/md0
+```
+
+![Состояние /dev/md0 после замены диска](image/11.PNG){#fig:011 width=90%}
+
+Теперь вместо диска ```/dev/sdg1``` указан диск ```[1]/dev/sdb1```, который имеет номер 2 в списке и номер 0 в ```RAID```.
+
+Удалим массив и очистим метаданные:
+```bash
+umount /dev/md0
+mdadm --stop /dev/md0
+mdadm --zero-superblock /dev/sdg1
+mdadm --zero-superblock /dev/sdf1
+mdadm --zero-superblock /dev/sdb1
+```
+
+![Удаление массива RAID /dev/md0](image/12.PNG){#fig:012 width=90%}
+
+## RAID-массив с горячим резервом (hotspare)
+
+Создадим ```RAID1 /dev/md0``` ещё раз, но добавим к нему третий диск (после создания). Подмонтируем массив:
+```bash
+mdadm --create --verbose /dev/md0 --level=1 --raid-devices=2 /dev/sdg1 /dev/sdf1
+mdadm --add /dev/md0 /dev/sdb1
+mount /dev/md0
+```
+
+![Добавление диска к новому массиву](image/13.PNG){#fig:013 width=90%}
+
+Проверим состояние массива:
+```bash
+cat /proc/mdstat
+mdadm --query /dev/md0
+mdadm --detail /dev/md0
+```
+
+![Состояние RAID1 /dev/md0 с тремя дисками](image/14.PNG){#fig:014 width=90%}
+
+Массив ```/dev/md0``` активен и имеет тип ```raid1```. В нем находится два активных раздела ```[0]/dev/sdg1``` и ```[1]/dev/sdf1``` и один резервный (spare) ```[-]/dev/sdb1```, который не активен.
+
+Сымитируем сбой диска ```/dev/sdf1``` и проверим состояние массива:
+```bash
+mdadm /dev/md0 --fail /dev/sdf1
+mdadm --detail /dev/md0
+```
+
+![Состояние RAID1 с 3-мя дисками после сбоя](image/15.PNG){#fig:015 width=90%}
+
+Массив автоматически пересобрался - теперь активны диски ```[0]/dev/sdg1``` и ```[1]/dev/sdb1```. Диск ```[-]/dev/sdf1```, в свою очередь, имеет состояние ```faulty```, это значит что диск неисправен.
+
+Удалим массив и очистим метаданные:
+```bash
+umount /dev/md0
+mdadm --stop /dev/md0
+mdadm --zero-superblock /dev/sdg1
+mdadm --zero-superblock /dev/sdf1
+mdadm --zero-superblock /dev/sdb1
+```
+
+## Преобразование массива RAID 1 в RAID 5
+
+Создадим ```RAID1 /dev/md0```, добавим к нему третий диск (после создания). Подмонтируем массив:
+```bash
+mdadm --create --verbose /dev/md0 --level=1 --raid-devices=2 /dev/sdg1 /dev/sdf1
+mdadm --add /dev/md0 /dev/sdb1
+mount /dev/md0
+```
+
+![Создание RAID1 /dev/md0](image/16.PNG){#fig:016 width=90%}
+
+Проверим состояние:
+```bash
+cat /proc/mdstat
+mdadm --query /dev/md0
+mdadm --detail /dev/md0
+```
+
+![Состояние RAID1 /dev/md0](image/17.PNG){#fig:017 width=90%}
+
+Оно аналогично состоянию, что было в начале предыдушего задания: Массив ```/dev/md0``` активен и имеет тип ```raid1```. В нем находится два активных раздела ```[0]/dev/sdg1``` и ```[1]/dev/sdf1``` и один резервный (spare) ```[-]/dev/sdb1```, который не активен.
+
+Изменим тип массива и проверим состояние:
+```bash
+mdadm --grow /dev/md0 --level=5
+mdadm --detail /dev/md0
+```
+
+![Состояние RAID5 /dev/md0](image/18.PNG){#fig:018 width=90%}
+
+Теперь массив имеет тип ```raid5```, однако третий диск ```[-]/dev/sdb1``` все ещё не активен и имеет статус запасного, так как в RAID задан размер 2 диска.
+
+Изменим количество дисков в массиве RAID5:
+```bash
+mdadm --grow /dev/md0 --raid-devices 3
+mdadm --detail /dev/md0
+```
+
+![Состояние RAID5 /dev/md0, с размером 3 диска](image/19.PNG){#fig:019 width=90%}
+
+Диск ```[2]/dev/sdb1``` автоматически подключился и активировался, теперь работают 3 диска из 3.
+
+Удалим массив и очистим метаданные:
+```bash
+umount /dev/md0
+mdadm --stop /dev/md0
+mdadm --zero-superblock /dev/sdg1
+mdadm --zero-superblock /dev/sdf1
+mdadm --zero-superblock /dev/sdb1
+```
+
+# Ответы на контрольные вопросы
+
+1. Приведите определение RAID.
+
+- ```RAID``` (Redundant Array of Independent Disks – Избыточный массив независимых дисков) — это метод виртуализации, позволяющий объединять несколько дисков в единый логический том, имеющий лучшие характеристики1 или, простыми словами, несколько дисков, соединенных в единую систему с выделенным местом для исправления ошибок в данных. 
+
+2. Какие типы RAID-массивов существуют на сегодняшний день?
+
+- RAID 0 - чередование; 
+- RAID 1 - зеркало; 
+- RAID 2 - чередование + код Хемминга; 
+- RAID 3 - чередование + диск четности; 
+- RAID 4 - чередование + диск четности (блоки данных вместо байтов); 
+- RAID 5 - чередование + хранение контрольных сумм распределяется по всему массиву; 
+- RAID 6 - чередование + две контрольные суммы; 
+- RAID 10 - массив RAID 0, построенный из RAID 1; 
+- RAID 50 - массив RAID 0, построенный из RAID 5; 
+- RAID 60 - массив RAID 0, построенный из RAID 6;
+
+3. Охарактеризуйте RAID 0, RAID 1, RAID 5, RAID 6, опишите алгоритм работы, назначение, приведите примеры применения.
+
+3.1. ```RAID 0``` 
+- Данные разбиваются на блоки и записываются на два или более дисков последовательно и без дублирования. 
+- Назначение: увеличение производительности. 
+- Примеры: **не критичные к потере данных**, но требующие высокой скорости системы.
+
+3.2. ```RAID 1``` 
+- Представляет собой полную копию информации одного диска массива на другой. 
+- Назначение: необходим для важных данных, сохранение которых стоит в приоритете. 
+- Примеры: файл-сервера с критически важными данными, малые базы данных.
+
+3.3. ```RAID 5``` 
+- Данные и контрольные суммы, необходимые для восстановления, распределяются по всем дискам массива. 
+- Четность рассчитывается по алгоритму XOR. 
+- Назначение: баланс между производительностью, отказоустойчивостью и эффективностью использования пространства. 
+- Примеры: сервера общего назначения, системы хранения данных, архивы, где важны и объем и надежность.
+
+3.4. ```RAID 6``` 
+- Улучшенный RAID 5. Контрольные суммы на этот массив записываются в двойном размере, что требует и увеличения объема для их хранения в два раза.
+- Назначение: повышенная отказоустойчивость. Создан для повышения надежности в массивах с большим количеством дисков и/или с дисками большой емкости.
+- Примеры: системы, в которых простои недопустимы, большие массивы хранения данных, системы резервного копирования.
+
+# Вывод
+
+В результате выполнения лабораторной работы я узнал как создавать RAID-массивы в операционной системе Linux и освоил работу специальной утилиты mdadm.
+
+# Список литературы{.unnumbered}
+
+::: {#refs}
+:::
